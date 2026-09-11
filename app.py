@@ -37,7 +37,7 @@ from mutagen.id3 import (
 )
 from mutagen.mp3 import MP3
 from PIL import Image, UnidentifiedImageError
-from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import (
     Application,
@@ -63,7 +63,7 @@ TEMP_TTL_SECONDS = 6 * 60 * 60
 MUSICBRAINZ_URL = "https://musicbrainz.org/ws/2/recording/"
 COVER_ART_URL = "https://coverartarchive.org/release/{release_id}/front-500"
 MUSICBRAINZ_USER_AGENT = (
-    "TagPhonkBot/3.0 (https://github.com/dev-nexo/TagPhonkBot)"
+    "TagPhonkBot/1.0 (https://github.com/dev-nexo/TagPhonkBot)"
 )
 
 logging.basicConfig(
@@ -90,13 +90,11 @@ async def lifespan(app: FastAPI):
 
     await bot_app.bot.set_my_commands(
         [
-            BotCommand("start", "Открыть TagPhonk V3"),
-            BotCommand("batch", "Пакетно обработать MP3"),
-            BotCommand("privacy", "Как обрабатываются файлы"),
-            BotCommand("studio", "Открыть TagPhonk Studio"),
-            BotCommand("admin", "Статистика администратора"),
-            BotCommand("cancel", "Отменить текущее действие"),
+            BotCommand("start", "Открыть TagPhonk"),
+            BotCommand("studio", "Открыть Studio"),
+            BotCommand("batch", "Пакетная обработка"),
             BotCommand("help", "Помощь"),
+            BotCommand("cancel", "Отменить действие"),
         ]
     )
 
@@ -105,8 +103,7 @@ async def lifespan(app: FastAPI):
             "Редактор MP3-тегов, обложек и метаданных прямо в Telegram."
         )
         await bot_app.bot.set_my_description(
-            "TagPhonk Studio V4: ID3, обложки, MusicBrainz, Mini App и аудио-инструменты. "
-            "отменяй изменения и обрабатывай несколько MP3 одним пакетом."
+            "Редактируй теги и обложки MP3, находи метаданные и используй аудио-инструменты прямо в Telegram."
         )
     except TelegramError:
         logger.warning("Could not update bot description", exc_info=True)
@@ -127,7 +124,7 @@ async def lifespan(app: FastAPI):
         await bot_app.shutdown()
 
 
-api = FastAPI(title="TagPhonk Studio V4", version=VERSION, lifespan=lifespan)
+api = FastAPI(title="TagPhonk", version=VERSION, lifespan=lifespan)
 
 mb_lock = asyncio.Lock()
 mb_last_request = 0.0
@@ -184,34 +181,63 @@ JUNK_PREFIXES = {
 
 
 def main_keyboard() -> InlineKeyboardMarkup:
+    rows = [
+        [
+            InlineKeyboardButton("✏️ Теги", callback_data="menu:quick"),
+            InlineKeyboardButton("🖼 Обложка", callback_data="menu:cover"),
+        ],
+        [
+            InlineKeyboardButton("✨ Авто-теги", callback_data="auto:search"),
+            InlineKeyboardButton("↩️ Отменить", callback_data="undo:last"),
+        ],
+    ]
+    if PUBLIC_URL:
+        rows.append(
+            [InlineKeyboardButton("🎛 Studio", web_app=WebAppInfo(url=f"{PUBLIC_URL}/app"))]
+        )
+    else:
+        rows.append([InlineKeyboardButton("🎛 Studio", callback_data="studio:menu")])
+    rows.append(
+        [
+            InlineKeyboardButton("⚙️ Ещё", callback_data="menu:more"),
+            InlineKeyboardButton("📤 Скачать", callback_data="file:send"),
+        ]
+    )
+    return InlineKeyboardMarkup(rows)
+
+
+def cover_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("✏️ Быстро изменить", callback_data="menu:quick"),
-                InlineKeyboardButton("🧭 Изменить всё", callback_data="wizard:start"),
+                InlineKeyboardButton("✨ Найти", callback_data="cover:find"),
+                InlineKeyboardButton("➕ Заменить", callback_data="cover:set"),
             ],
-            [
-                InlineKeyboardButton("✨ Авто-теги", callback_data="auto:search"),
-                InlineKeyboardButton("🖼 Найти обложку", callback_data="cover:find"),
-            ],
-            [
-                InlineKeyboardButton("🧰 Доп. теги", callback_data="menu:advanced"),
-                InlineKeyboardButton("📄 Имя файла", callback_data="menu:rename"),
-            ],
-            [
-                InlineKeyboardButton("🧹 Очистить мусор", callback_data="tags:clean"),
-                InlineKeyboardButton("↩️ Отменить", callback_data="undo:last"),
-            ],
-            [
-                InlineKeyboardButton("ℹ️ Все теги", callback_data="info:full"),
-                InlineKeyboardButton("⚠️ Стереть всё", callback_data="tags:clear_ask"),
-            ],
-            [InlineKeyboardButton("📦 Пакетный режим", callback_data="batch:start")],
-            [InlineKeyboardButton("🎛 TagPhonk Studio", callback_data="studio:menu")],
-            [InlineKeyboardButton("📤 Скачать готовый MP3", callback_data="file:send")],
+            [InlineKeyboardButton("🗑 Удалить", callback_data="cover:remove")],
+            [InlineKeyboardButton("⬅️ Назад", callback_data="nav:main")],
         ]
     )
 
+
+def more_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🧭 Изменить всё", callback_data="wizard:start"),
+                InlineKeyboardButton("🧰 Доп. теги", callback_data="menu:advanced"),
+            ],
+            [
+                InlineKeyboardButton("📄 Имя файла", callback_data="menu:rename"),
+                InlineKeyboardButton("🧹 Очистить", callback_data="tags:clean"),
+            ],
+            [
+                InlineKeyboardButton("ℹ️ Все теги", callback_data="info:full"),
+                InlineKeyboardButton("📦 Пакет", callback_data="batch:start"),
+            ],
+            [InlineKeyboardButton("⚠️ Стереть все теги", callback_data="tags:clear_ask")],
+            [InlineKeyboardButton("⬅️ Назад", callback_data="nav:main")],
+        ]
+    )
 
 def quick_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -333,10 +359,13 @@ def batch_menu_keyboard() -> InlineKeyboardMarkup:
 
 
 def start_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("📦 Пакетный режим", callback_data="batch:start")]]
-    )
-
+    rows = []
+    if PUBLIC_URL:
+        rows.append(
+            [InlineKeyboardButton("🎛 Открыть Studio", web_app=WebAppInfo(url=f"{PUBLIC_URL}/app"))]
+        )
+    rows.append([InlineKeyboardButton("📦 Пакетная обработка", callback_data="batch:start")])
+    return InlineKeyboardMarkup(rows)
 
 def get_tags(path: str) -> ID3:
     try:
@@ -468,17 +497,13 @@ def compact_summary(path: str, context: ContextTypes.DEFAULT_TYPE) -> str:
     year = html.escape(clip_text(frame_text(tags, "TDRC"), 30))
     genre = html.escape(clip_text(frame_text(tags, "TCON"), 60))
     cover = html.escape(cover_details(tags))
-    template = html.escape(context.user_data.get("filename_template", "{artist} - {title}"))
 
     return (
-        "🎧 <b>TagPhonk V3</b>\n\n"
-        f"<b>{artist} — {title}</b>\n"
+        f"🎧 <b>{artist} — {title}</b>\n"
         f"💿 {album}\n"
         f"📅 {year}   🎵 {genre}\n"
         f"⏱ {duration}   🎚 {bitrate}\n"
-        f"📦 {file_size}\n"
-        f"🖼 {cover}\n\n"
-        f"📄 Шаблон: <code>{template}</code>"
+        f"📦 {file_size}   🖼 {cover}"
     )
 
 
@@ -958,17 +983,9 @@ async def download_mp3(
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(
-        "🎵 <b>TagPhonk V3</b>\n\n"
-        "Редактор MP3-метаданных прямо в Telegram.\n\n"
-        "Что умею:\n"
-        "• менять основные и расширенные ID3-теги;\n"
-        "• менять и искать обложки;\n"
-        "• искать метаданные через MusicBrainz;\n"
-        "• откатывать изменения;\n"
-        "• чистить служебный мусор;\n"
-        "• переименовывать готовый файл по шаблону;\n"
-        "• пакетно обрабатывать до 10 MP3.\n\n"
-        "Пришли MP3 или открой пакетный режим.",
+        "🎵 <b>TagPhonk</b>\n\n"
+        "Редактор тегов и обложек MP3.\n"
+        "Пришли файл сюда или открой Studio.",
         parse_mode="HTML",
         reply_markup=start_keyboard(),
     )
@@ -1391,6 +1408,14 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if data == "nav:main":
         await send_track_card(query.message, path, context)
+        return
+
+    if data == "menu:cover":
+        await query.message.reply_text("🖼 Обложка", reply_markup=cover_keyboard())
+        return
+
+    if data == "menu:more":
+        await query.message.reply_text("⚙️ Дополнительно", reply_markup=more_keyboard())
         return
 
     if data == "menu:quick":

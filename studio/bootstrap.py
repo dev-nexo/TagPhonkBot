@@ -17,7 +17,7 @@ def install_studio(
     public_url: str,
     bot_token: str,
 ) -> None:
-    install_web(api, bot_token)
+    install_web(api, bot_token, bot_app.bot)
     install_bot(bot_app, helpers, public_url)
 
 

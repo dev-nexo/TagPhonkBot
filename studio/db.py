@@ -197,6 +197,35 @@ class StudioDB:
             finally:
                 con.close()
 
+    def get_project(self, user_id: int, project_id: int) -> dict[str, Any] | None:
+        with self._lock:
+            con = self._connect()
+            try:
+                cur = con.cursor()
+                query = (
+                    "SELECT id,user_id,telegram_file_id,filename,title,artist,album,"
+                    " duration_seconds,size_bytes,snapshot_json,created_at,updated_at"
+                    " FROM studio_projects WHERE user_id=%s AND id=%s"
+                    if self.is_postgres
+                    else "SELECT id,user_id,telegram_file_id,filename,title,artist,album,"
+                         " duration_seconds,size_bytes,snapshot_json,created_at,updated_at"
+                         " FROM studio_projects WHERE user_id=? AND id=?"
+                )
+                cur.execute(query, (user_id, project_id))
+                row = cur.fetchone()
+                if not row:
+                    return None
+                cols = [d[0] for d in cur.description]
+                result = dict(zip(cols, row))
+                try:
+                    result["snapshot"] = json.loads(result.pop("snapshot_json") or "{}")
+                except Exception:
+                    result["snapshot"] = {}
+                    result.pop("snapshot_json", None)
+                return result
+            finally:
+                con.close()
+
     def event(self, event_type: str, user_id: int | None = None, details: dict | None = None) -> None:
         now = int(time.time())
         details_json = json.dumps(details or {}, ensure_ascii=False)

@@ -3,78 +3,111 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0b0b10">
-  <title>TagPhonk Studio</title>
+  <meta name="theme-color" content="#09090d">
+  <title>TagPhonk</title>
   <link rel="stylesheet" href="/studio-static/style.css">
   <script src="https://telegram.org/js/telegram-web-app.js?61"></script>
 </head>
 <body>
-  <div class="noise"></div>
-  <main class="wrap">
-    <header class="hero">
-      <div class="logo">TP</div>
-      <div>
-        <h1>TagPhonk Studio</h1>
-        <p id="hello">Загрузка…</p>
-      </div>
-      <div class="pill">V4</div>
+  <div class="ambient"></div>
+  <div id="loading" class="loading hidden"><div class="spinner"></div><span id="loadingText">Работаю…</span></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <main class="shell">
+    <header class="topbar">
+      <div class="brandmark">TP</div>
+      <div class="brandcopy"><h1>TagPhonk</h1><p id="hello">MP3 editor</p></div>
+      <button class="icon-btn" id="newFileBtn">＋</button>
     </header>
 
-    <section class="grid stats">
-      <article><b id="projectsCount">0</b><span>проектов</span></article>
-      <article><b id="processedSize">0 MB</b><span>обработано</span></article>
-      <article><b id="dbMode">—</b><span>хранилище</span></article>
-    </section>
-
-    <section class="card">
-      <h2>🎛 Studio Tools</h2>
-      <div class="tools">
-        <button data-tool="analysis">📊 Анализ</button>
-        <button data-tool="waveform">📈 Waveform</button>
-        <button data-tool="slowed">🐢 Slowed</button>
-        <button data-tool="phonk">🔥 Phonk FX</button>
-        <button data-tool="bass">🔊 Bass Boost</button>
-        <button data-tool="normalize">🎚 Normalize</button>
+    <section class="view active" data-view="editor">
+      <div id="emptyEditor" class="empty-editor card">
+        <div class="upload-icon">♫</div>
+        <h2>Открой MP3</h2>
+        <p>Теги и обложка редактируются прямо здесь.</p>
+        <label class="primary upload-button">Выбрать MP3<input id="fileInput" type="file" accept=".mp3,audio/mpeg" hidden></label>
       </div>
-      <p class="hint">Аудио-инструменты запускаются для текущего MP3 в чате бота.</p>
-      <button class="primary" id="openBot">Открыть редактор в чате</button>
-    </section>
 
-    <section class="card">
-      <div class="row">
-        <h2>🗂 Недавние проекты</h2>
-        <button class="ghost" id="reload">Обновить</button>
+      <div id="editorPanel" class="hidden">
+        <section class="track-hero card">
+          <div class="cover-wrap">
+            <div id="coverFallback" class="cover-fallback">♫</div>
+            <img id="coverImage" class="cover-image hidden" alt="Cover">
+            <label class="cover-edit">✎<input id="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>
+          </div>
+          <div class="track-copy">
+            <h2 id="trackTitle">Без названия</h2>
+            <p id="trackArtist">Неизвестный исполнитель</p>
+            <div class="chips"><span id="chipDuration">0:00</span><span id="chipBitrate">0 kbps</span><span id="chipSize">0 MB</span></div>
+          </div>
+        </section>
+
+        <section class="quick-actions">
+          <button id="undoBtn">↩️ Отменить</button>
+          <button id="removeCoverBtn">🗑 Обложка</button>
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>Основные теги</h2><span>ID3</span></div>
+          <div class="form-grid">
+            <label class="wide">Название<input data-field="title" type="text"></label>
+            <label class="wide">Исполнитель<input data-field="artist" type="text"></label>
+            <label>Альбом<input data-field="album" type="text"></label>
+            <label>Автор альбома<input data-field="albumartist" type="text"></label>
+            <label>Год<input data-field="year" type="text"></label>
+            <label>Жанр<input data-field="genre" type="text"></label>
+            <label>Трек<input data-field="track" type="text"></label>
+            <label>Диск<input data-field="disc" type="text"></label>
+          </div>
+        </section>
+
+        <details class="card">
+          <summary>Дополнительные теги <span>⌄</span></summary>
+          <div class="form-grid advanced">
+            <label>Композитор<input data-field="composer" type="text"></label>
+            <label>BPM<input data-field="bpm" type="text"></label>
+            <label>Издатель<input data-field="publisher" type="text"></label>
+            <label>ISRC<input data-field="isrc" type="text"></label>
+            <label class="wide">Copyright<input data-field="copyright" type="text"></label>
+            <label class="wide">Сайт<input data-field="website" type="url"></label>
+            <label class="wide">Комментарий<textarea data-field="comment" rows="3"></textarea></label>
+            <label class="wide">Lyrics<textarea data-field="lyrics" rows="5"></textarea></label>
+          </div>
+        </details>
+
+        <div class="editor-footer">
+          <button class="primary" id="saveBtn">Сохранить изменения</button>
+          <button class="download" id="downloadBtn">Скачать MP3</button>
+        </div>
       </div>
-      <div id="projects" class="projects"><div class="empty">Пока пусто</div></div>
     </section>
 
-    <section class="card">
-      <h2>⚙️ Настройки</h2>
-      <label>Шаблон имени
-        <input id="filenameTemplate" placeholder="{artist} - {title}">
-      </label>
-      <label>Жанр по умолчанию
-        <input id="defaultGenre" placeholder="Phonk">
-      </label>
-      <label class="check"><input type="checkbox" id="removeComments"> удалять комментарии в Clean preset</label>
-      <label class="check"><input type="checkbox" id="normalizeCover"> нормализовать обложки</label>
-      <button class="primary" id="saveSettings">Сохранить настройки</button>
+    <section class="view" data-view="projects">
+      <section class="card">
+        <div class="section-title"><div><h2>Недавние проекты</h2><p>Файлы, которые ты отправлял боту.</p></div><button class="tiny" id="reloadProjects">Обновить</button></div>
+        <div id="projects" class="projects"><div class="empty-state">Пока пусто.</div></div>
+      </section>
+      <section class="card compact-stats"><div><b id="projectsCount">0</b><span>проектов</span></div><div><b id="processedSize">0 MB</b><span>обработано</span></div></section>
     </section>
 
-    <section class="card">
-      <h2>🧩 Presets</h2>
-      <div id="presets" class="presets"></div>
-    </section>
-
-    <section class="card subtle">
-      <h2>Что уже внутри V4</h2>
-      <p>
-        Mini App, история проектов, пресеты, ZIP batch, waveform, технический анализ,
-        Slowed / Super Slowed / Sped Up, Bass Boost, Reverb, Normalize, конвертация,
-        JSON/CSV экспорт, MusicBrainz из V3 и готовность к AcoustID fingerprint.
-      </p>
+    <section class="view" data-view="settings">
+      <section class="card">
+        <h2>Настройки</h2>
+        <label>Шаблон имени<input id="filenameTemplate" type="text" placeholder="{artist} - {title}"></label>
+        <label>Жанр по умолчанию<input id="defaultGenre" type="text" placeholder="Phonk"></label>
+        <label class="switch-row"><span>Удалять комментарии в Clean</span><input type="checkbox" id="removeComments"></label>
+        <label class="switch-row"><span>Нормализовать обложки</span><input type="checkbox" id="normalizeCover"></label>
+        <button class="primary full" id="saveSettings">Сохранить настройки</button>
+      </section>
     </section>
   </main>
+
+  <nav class="bottom-nav">
+    <button class="active" data-nav="editor"><span>✎</span>Редактор</button>
+    <button data-nav="projects"><span>▣</span>Проекты</button>
+    <button data-nav="settings"><span>⚙</span>Настройки</button>
+  </nav>
+
   <script src="/studio-static/app.js"></script>
 </body>
 </html>

@@ -51,52 +51,33 @@ upload_limiter = SlidingWindowRateLimiter(limit=8, window_seconds=60)
 
 
 def studio_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
+    rows = []
+    if PUBLIC_URL:
+        rows.append(
+            [InlineKeyboardButton("🖥 Открыть Studio", web_app=WebAppInfo(url=f"{PUBLIC_URL}/app"))]
+        )
+    rows.extend(
         [
-            InlineKeyboardButton("📊 Анализ", callback_data="studio:analysis"),
-            InlineKeyboardButton("📈 Waveform", callback_data="studio:waveform"),
-        ],
-        [
-            InlineKeyboardButton("🐢 Slowed 0.90x", callback_data="studio:fx:slowed90"),
-            InlineKeyboardButton("🐌 Super 0.80x", callback_data="studio:fx:super80"),
-        ],
-        [
-            InlineKeyboardButton("⚡ Sped Up 1.15x", callback_data="studio:fx:sped115"),
-            InlineKeyboardButton("🔥 Phonk FX", callback_data="studio:fx:phonk"),
-        ],
-        [
-            InlineKeyboardButton("🔊 Bass Boost", callback_data="studio:fx:bass"),
-            InlineKeyboardButton("🌫 Reverb", callback_data="studio:fx:reverb"),
-        ],
-        [
-            InlineKeyboardButton("🎚 Normalize", callback_data="studio:fx:normalize"),
-            InlineKeyboardButton("✂️ Preview 30s", callback_data="studio:preview"),
-        ],
-        [
-            InlineKeyboardButton("🧼 Clean name", callback_data="studio:cleanname"),
-            InlineKeyboardButton("🧠 Fingerprint", callback_data="studio:fingerprint"),
-        ],
-        [
-            InlineKeyboardButton("🧹 Clean Release", callback_data="studio:preset:clean"),
-            InlineKeyboardButton("🚘 Phonk Release", callback_data="studio:preset:phonk"),
-        ],
-        [
-            InlineKeyboardButton("🎚 DJ Library", callback_data="studio:preset:dj"),
-            InlineKeyboardButton("🪶 Minimal", callback_data="studio:preset:minimal"),
-        ],
-        [
-            InlineKeyboardButton("📑 JSON", callback_data="studio:export:json"),
-            InlineKeyboardButton("📋 CSV", callback_data="studio:export:csv"),
-        ],
-        [
-            InlineKeyboardButton("🔄 FLAC", callback_data="studio:convert:flac"),
-            InlineKeyboardButton("🔄 M4A", callback_data="studio:convert:m4a"),
-            InlineKeyboardButton("🔄 OGG", callback_data="studio:convert:ogg"),
-        ],
-        [InlineKeyboardButton("🖥 Открыть TagPhonk Studio", web_app=WebAppInfo(url=f"{PUBLIC_URL}/app"))]
-        if PUBLIC_URL else [],
-        [InlineKeyboardButton("⬅️ Назад к тегам", callback_data="nav:main")],
-    ])
+            [
+                InlineKeyboardButton("📊 Анализ", callback_data="studio:analysis"),
+                InlineKeyboardButton("📈 Waveform", callback_data="studio:waveform"),
+            ],
+            [
+                InlineKeyboardButton("🐢 Slowed", callback_data="studio:fx:slowed90"),
+                InlineKeyboardButton("⚡ Sped Up", callback_data="studio:fx:sped115"),
+            ],
+            [
+                InlineKeyboardButton("🔊 Bass Boost", callback_data="studio:fx:bass"),
+                InlineKeyboardButton("🔥 Phonk FX", callback_data="studio:fx:phonk"),
+            ],
+            [
+                InlineKeyboardButton("🎚 Normalize", callback_data="studio:fx:normalize"),
+                InlineKeyboardButton("🧠 Распознать", callback_data="studio:fingerprint"),
+            ],
+            [InlineKeyboardButton("⬅️ К тегам", callback_data="nav:main")],
+        ]
+    )
+    return InlineKeyboardMarkup(rows)
 
 
 def _private(update: Update) -> bool:
@@ -488,7 +469,7 @@ async def startup(bot_app: Application, public_url: str) -> None:
         try:
             await bot_app.bot.set_chat_menu_button(
                 menu_button=MenuButtonWebApp(
-                    text="TagPhonk Studio",
+                    text="Studio",
                     web_app=WebAppInfo(url=f"{public_url}/app"),
                 )
             )

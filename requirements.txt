@@ -7,3 +7,4 @@ Pillow==12.3.0
 static-ffmpeg==3.0
 psycopg[binary]==3.3.5
 redis==8.1.0
+python-multipart==0.0.32
