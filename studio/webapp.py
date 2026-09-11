@@ -398,6 +398,21 @@ async def editor_close(session_id: str, x_telegram_init_data: str | None = Heade
     return {"ok": True}
 
 
+@router.get("/api/studio/presets")
+async def presets(x_telegram_init_data: str | None = Header(default=None)):
+    user_id = _uid(x_telegram_init_data)
+    custom = await asyncio.to_thread(db.presets, user_id)
+    return {
+        "builtin": [
+            {"id": "clean", "name": "Clean"},
+            {"id": "phonk", "name": "Phonk"},
+            {"id": "dj", "name": "DJ Library"},
+            {"id": "minimal", "name": "Minimal"},
+        ],
+        "custom": custom,
+    }
+
+
 @router.post("/api/studio/settings")
 async def save_settings(request: Request, x_telegram_init_data: str | None = Header(default=None)):
     user = _auth(x_telegram_init_data)
