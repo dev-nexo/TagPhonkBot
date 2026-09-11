@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#08090d">
   <title>TagPhonk</title>
-  <link rel="stylesheet" href="/studio-static/style.css?v=20260912-daw1">
+  <link rel="stylesheet" href="/studio-static/style.css?v=20260912-daw2">
   <script src="https://telegram.org/js/telegram-web-app.js?61"></script>
 </head>
 <body>
@@ -87,53 +87,112 @@
       <div id="dawEmpty" class="card daw-empty">
         <div class="upload-icon daw-icon">▦</div>
         <h2>Mini DAW</h2>
-        <p>Мультитрек, микшер, 16-step sequencer, live preview и финальный render через FFmpeg.</p>
-        <button class="primary" id="createDawBtn">Создать проект</button>
+        <p>Пустой проект без внезапной музыки. Добавляй аудио прямо на нужную дорожку, режь клипы, своди, крути FX и рендери финальный трек.</p>
+        <button class="primary" id="createDawBtn">Создать пустой проект</button>
       </div>
 
       <div id="dawPanel" class="hidden">
         <section class="daw-top card">
           <div class="daw-title-row">
             <input id="dawName" class="daw-name" value="Untitled" aria-label="Название проекта">
+            <div class="save-state" id="saveStatus">Сохранено</div>
             <div class="bpm-box"><span>BPM</span><input id="dawBpm" type="number" min="50" max="220" value="130"></div>
           </div>
+
           <div class="transport">
+            <button id="dawRewind" title="В начало">|◀</button>
             <button id="dawStop">■</button>
             <button id="dawPlay" class="play">▶</button>
+            <button id="dawLoop" title="Loop">↻</button>
+            <button id="dawMetronome" title="Метроном">♩</button>
             <div class="time-readout"><b id="dawTime">0:00.00</b><span id="dawLength">/ 0:00</span></div>
-            <label class="zoom-box">Zoom<input id="dawZoom" type="range" min="28" max="120" value="52"></label>
+            <div class="master-meter"><i id="masterMeterFill"></i></div>
+            <label class="snap-box">Snap
+              <select id="snapMode">
+                <option value="off">Off</option>
+                <option value="1/4">1/4</option>
+                <option value="1/8">1/8</option>
+                <option value="1/16" selected>1/16</option>
+                <option value="1/32">1/32</option>
+              </select>
+            </label>
+            <label class="zoom-box">Zoom<input id="dawZoom" type="range" min="28" max="130" value="58"></label>
           </div>
         </section>
 
         <section class="card daw-toolbar">
           <button id="addTrackBtn">＋ Дорожка</button>
-          <label class="button-like">＋ Аудио<input id="dawFileInput" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden></label>
+          <button id="addAudioBtn" class="primary-soft">＋ Аудио на дорожку</button>
+          <input id="dawFileInput" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" multiple hidden>
           <button id="currentToDawBtn">♫ Текущий MP3</button>
-          <span id="selectedTrackLabel">Main</span>
+          <span id="selectedTrackLabel">Track 1</span>
         </section>
 
         <section class="timeline-card card">
+          <div class="timeline-help">
+            <span>Нажми <b>＋</b> у дорожки или перетащи аудиофайл прямо на неё.</span>
+            <span>Space: Play · Del: удалить · Ctrl+D: дубликат · S: split</span>
+          </div>
           <div id="timelineRuler" class="timeline-ruler"></div>
           <div id="timeline" class="timeline"></div>
         </section>
 
         <section id="clipInspector" class="card hidden">
-          <div class="section-title"><h2>Клип</h2><button id="deleteClipBtn" class="danger tiny">Удалить</button></div>
-          <div class="clip-inspector-grid">
-            <label>Start<input id="clipStart" type="number" min="0" step="0.05"></label>
-            <label>Trim in<input id="clipTrimStart" type="number" min="0" step="0.05"></label>
-            <label>Trim out<input id="clipTrimEnd" type="number" min="0" step="0.05"></label>
+          <div class="section-title">
+            <div><h2>Клип</h2><p id="clipName">Audio</p></div>
+            <div class="clip-actions">
+              <button id="duplicateClipBtn" class="tiny">⧉ Дубликат</button>
+              <button id="splitClipBtn" class="tiny">✂ Split</button>
+              <button id="deleteClipBtn" class="danger tiny">Удалить</button>
+            </div>
+          </div>
+
+          <div class="clip-inspector-grid expanded">
+            <label>Дорожка<select id="clipTrack"></select></label>
+            <label>Start<input id="clipStart" type="number" min="0" step="0.01"></label>
+            <label>Trim in<input id="clipTrimStart" type="number" min="0" step="0.01"></label>
+            <label>Trim out<input id="clipTrimEnd" type="number" min="0" step="0.01"></label>
+            <label>Speed<input id="clipRate" type="range" min="0.5" max="2" step="0.01"></label>
             <label>Gain<input id="clipGain" type="range" min="0" max="2" step="0.01"></label>
+            <label>Fade in<input id="clipFadeIn" type="range" min="0" max="5" step="0.05"></label>
+            <label>Fade out<input id="clipFadeOut" type="range" min="0" max="5" step="0.05"></label>
           </div>
         </section>
 
         <section class="card">
-          <div class="section-title"><div><h2>Mixer</h2><p>Volume, pan и FX по дорожкам.</p></div></div>
+          <div class="section-title">
+            <div><h2>Mixer</h2><p>Volume, pan, bass, filters, reverb, delay, mute и solo.</p></div>
+          </div>
           <div id="mixer" class="mixer"></div>
         </section>
 
         <section class="card sequencer-card">
-          <div class="section-title"><div><h2>Step Sequencer</h2><p>16 шагов, один такт, зацикливается на весь проект.</p></div><label class="seq-gain">Level<input id="sequenceGain" type="range" min="0" max="1.5" step="0.01" value="0.72"></label></div>
+          <div class="section-title seq-title">
+            <div>
+              <h2>Step Sequencer</h2>
+              <p>По умолчанию выключен и пустой. Никаких призрачных cowbell в новом проекте.</p>
+            </div>
+            <div class="seq-controls">
+              <button id="toggleSequence" class="tiny">○ OFF</button>
+              <select id="sequencePreset">
+                <option value="">Preset</option>
+                <option value="drift">Drift Phonk</option>
+                <option value="hard">Hard Phonk</option>
+                <option value="trap">Trap Hats</option>
+                <option value="four">Four on Floor</option>
+                <option value="empty">Empty</option>
+              </select>
+              <button id="randomSequence" class="tiny">⚄ Random</button>
+              <button id="clearSequence" class="tiny">Clear</button>
+            </div>
+          </div>
+          <div class="seq-level-row">
+            <button class="pad" data-pad="kick">KICK</button>
+            <button class="pad" data-pad="snare">SNARE</button>
+            <button class="pad" data-pad="hat">HAT</button>
+            <button class="pad" data-pad="cow">COW</button>
+            <label class="seq-gain">Level<input id="sequenceGain" type="range" min="0" max="1.5" step="0.01" value="0.72"></label>
+          </div>
           <div class="step-numbers">
             <span></span><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b><b>7</b><b>8</b><b>9</b><b>10</b><b>11</b><b>12</b><b>13</b><b>14</b><b>15</b><b>16</b>
           </div>
@@ -141,7 +200,9 @@
         </section>
 
         <section class="card export-card">
-          <div class="section-title"><div><h2>Export</h2><p>Финальный микс рендерится на сервере.</p></div></div>
+          <div class="section-title">
+            <div><h2>Master & Export</h2><p>FFmpeg сводит дорожки и делает финальный файл.</p></div>
+          </div>
           <div class="export-grid">
             <label>Format<select id="exportFormat"><option value="mp3">MP3 320k</option><option value="wav">WAV</option><option value="flac">FLAC</option><option value="m4a">M4A 256k</option></select></label>
             <label>Master<input id="masterGain" type="range" min="0" max="2" step="0.01" value="1"></label>
@@ -179,6 +240,6 @@
     <button data-nav="settings"><span>⚙</span>Настройки</button>
   </nav>
 
-  <script src="/studio-static/app.js?v=20260912-daw1"></script>
+  <script src="/studio-static/app.js?v=20260912-daw2"></script>
 </body>
 </html>

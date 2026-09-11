@@ -38,10 +38,10 @@ RENDER_SEMAPHORE = asyncio.Semaphore(1)
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
 
 DEFAULT_SEQUENCE = {
-    "kick": [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-    "snare":[0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
-    "hat":  [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
-    "cow":  [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,1,0,0],
+    "kick": [0] * 16,
+    "snare": [0] * 16,
+    "hat": [0] * 16,
+    "cow": [0] * 16,
 }
 
 
@@ -91,9 +91,10 @@ def _new_project(user_id: int, name: str = "Untitled") -> dict[str, Any]:
         "master_gain": 1.0,
         "normalize": True,
         "sequence_gain": 0.72,
+        "sequence_enabled": False,
         "dir": str(folder),
         "total_bytes": 0,
-        "tracks": [_track("Main"), _track("Drums"), _track("Bass"), _track("FX")],
+        "tracks": [_track("Track 1")],
         "clips": [],
         "sequence": {k: list(v) for k, v in DEFAULT_SEQUENCE.items()},
         "created_at": now,
@@ -128,13 +129,14 @@ def _public(project: dict[str, Any]) -> dict[str, Any]:
         "master_gain": project["master_gain"],
         "normalize": project["normalize"],
         "sequence_gain": project["sequence_gain"],
+        "sequence_enabled": project["sequence_enabled"],
         "tracks": project["tracks"],
         "clips": [
             {
                 k: clip[k]
                 for k in (
                     "id", "track_id", "filename", "duration", "start",
-                    "trim_start", "trim_end", "gain", "size_bytes",
+                    "trim_start", "trim_end", "gain", "rate", "fade_in", "fade_out", "size_bytes",
                 )
             }
             for clip in project["clips"]
@@ -172,6 +174,8 @@ def _apply_patch(project: dict[str, Any], payload: dict[str, Any]) -> None:
         project["sequence_gain"] = _clamp(payload["sequence_gain"], 0, 1.5, project["sequence_gain"])
     if "normalize" in payload:
         project["normalize"] = bool(payload["normalize"])
+    if "sequence_enabled" in payload:
+        project["sequence_enabled"] = bool(payload["sequence_enabled"])
     if "sequence" in payload:
         project["sequence"] = _sanitize_sequence(payload["sequence"])
 
@@ -216,6 +220,9 @@ def _apply_patch(project: dict[str, Any], payload: dict[str, Any]) -> None:
                 clip["track_id"] = track_id
             clip["start"] = _clamp(raw.get("start"), 0, MAX_RENDER_SECONDS, clip["start"])
             clip["gain"] = _clamp(raw.get("gain"), 0, 2, clip["gain"])
+            clip["rate"] = _clamp(raw.get("rate"), 0.5, 2.0, clip.get("rate", 1.0))
+            clip["fade_in"] = _clamp(raw.get("fade_in"), 0, 10, clip.get("fade_in", 0.0))
+            clip["fade_out"] = _clamp(raw.get("fade_out"), 0, 10, clip.get("fade_out", 0.0))
             trim_start = _clamp(raw.get("trim_start"), 0, clip["duration"], clip["trim_start"])
             trim_end = _clamp(raw.get("trim_end"), trim_start + 0.03, clip["duration"], clip["trim_end"])
             clip["trim_start"] = trim_start
@@ -232,9 +239,9 @@ def _project_duration(project: dict[str, Any]) -> float:
         track = track_by_id.get(clip["track_id"])
         if not track or track["mute"] or (any_solo and not track["solo"]):
             continue
-        audible = max(0.03, clip["trim_end"] - clip["trim_start"])
+        audible = max(0.03, clip["trim_end"] - clip["trim_start"]) / max(0.5, float(clip.get("rate", 1.0)))
         longest = max(longest, clip["start"] + audible)
-    has_sequence = any(any(row) for row in project["sequence"].values())
+    has_sequence = bool(project.get("sequence_enabled")) and any(any(row) for row in project["sequence"].values())
     bar = 60.0 / project["bpm"] * 4.0
     if has_sequence:
         longest = max(longest, bar * 4)
@@ -334,7 +341,7 @@ def _render_sync(project: dict[str, Any], fmt: str) -> Path:
             continue
         active_clips.append((clip, track))
 
-    has_sequence = any(any(row) for row in project["sequence"].values())
+    has_sequence = bool(project.get("sequence_enabled")) and any(any(row) for row in project["sequence"].values())
     if not active_clips and not has_sequence:
         raise ValueError("В проекте пока нечего рендерить.")
 
@@ -360,12 +367,22 @@ def _render_sync(project: dict[str, Any], fmt: str) -> Path:
         left = volume * (1.0 - max(0.0, pan))
         right = volume * (1.0 + min(0.0, pan))
 
+        rate = max(0.5, min(2.0, float(clip.get("rate", 1.0))))
+        output_duration = max(0.03, (trim_end - trim_start) / rate)
+        fade_in = max(0.0, min(float(clip.get("fade_in", 0.0)), output_duration / 2))
+        fade_out = max(0.0, min(float(clip.get("fade_out", 0.0)), output_duration / 2))
+
         chain = [
             f"[{i}:a]atrim=start={trim_start:.4f}:end={trim_end:.4f}",
             "asetpts=PTS-STARTPTS",
+            f"atempo={rate:.5f}",
             "aresample=44100",
             "aformat=sample_fmts=fltp:channel_layouts=stereo",
         ]
+        if fade_in > 0.005:
+            chain.append(f"afade=t=in:st=0:d={fade_in:.4f}")
+        if fade_out > 0.005:
+            chain.append(f"afade=t=out:st={max(0.0, output_duration - fade_out):.4f}:d={fade_out:.4f}")
 
         fx = track["fx"]
         if float(fx["highpass"]) > 21:
@@ -570,6 +587,9 @@ async def upload_clip(
         "trim_start": 0.0,
         "trim_end": duration,
         "gain": 1.0,
+        "rate": 1.0,
+        "fade_in": 0.0,
+        "fade_out": 0.0,
         "size_bytes": total,
     }
     project["clips"].append(clip)
@@ -612,9 +632,68 @@ async def delete_clip(
             keep.append(clip)
     if not removed:
         raise HTTPException(status_code=404, detail="Клип не найден.")
-    Path(removed["path"]).unlink(missing_ok=True)
+
     project["clips"] = keep
-    project["total_bytes"] = max(0, project["total_bytes"] - int(removed["size_bytes"]))
+    if not any(c["path"] == removed["path"] for c in keep):
+        Path(removed["path"]).unlink(missing_ok=True)
+        project["total_bytes"] = max(0, project["total_bytes"] - int(removed["size_bytes"]))
+    project["updated_at"] = time.time()
+    return _public(project)
+
+
+@router.post("/api/daw/projects/{project_id}/clips/{clip_id}/duplicate")
+async def duplicate_clip(
+    project_id: str,
+    clip_id: str,
+    x_telegram_init_data: str | None = Header(default=None),
+):
+    project = _project(project_id, _uid(x_telegram_init_data))
+    if len(project["clips"]) >= MAX_CLIPS:
+        raise HTTPException(status_code=409, detail=f"Максимум {MAX_CLIPS} клипа.")
+    source = next((c for c in project["clips"] if c["id"] == clip_id), None)
+    if not source:
+        raise HTTPException(status_code=404, detail="Клип не найден.")
+    clone = dict(source)
+    clone["id"] = uuid.uuid4().hex[:12]
+    audible = max(0.03, source["trim_end"] - source["trim_start"]) / max(0.5, float(source.get("rate", 1.0)))
+    clone["start"] = min(MAX_RENDER_SECONDS, float(source["start"]) + audible)
+    project["clips"].append(clone)
+    project["updated_at"] = time.time()
+    return _public(project)
+
+
+@router.post("/api/daw/projects/{project_id}/clips/{clip_id}/split")
+async def split_clip(
+    project_id: str,
+    clip_id: str,
+    request: Request,
+    x_telegram_init_data: str | None = Header(default=None),
+):
+    project = _project(project_id, _uid(x_telegram_init_data))
+    if len(project["clips"]) >= MAX_CLIPS:
+        raise HTTPException(status_code=409, detail=f"Максимум {MAX_CLIPS} клипа.")
+    clip = next((c for c in project["clips"] if c["id"] == clip_id), None)
+    if not clip:
+        raise HTTPException(status_code=404, detail="Клип не найден.")
+    payload = await request.json()
+    position = float(payload.get("position", 0))
+    rate = max(0.5, float(clip.get("rate", 1.0)))
+    visual_duration = (clip["trim_end"] - clip["trim_start"]) / rate
+    local = position - float(clip["start"])
+    if local <= 0.03 or local >= visual_duration - 0.03:
+        raise HTTPException(status_code=409, detail="Поставь playhead внутрь клипа.")
+    source_split = float(clip["trim_start"]) + local * rate
+
+    second = dict(clip)
+    second["id"] = uuid.uuid4().hex[:12]
+    second["start"] = position
+    second["trim_start"] = source_split
+    second["fade_in"] = 0.0
+
+    clip["trim_end"] = source_split
+    clip["fade_out"] = 0.0
+
+    project["clips"].append(second)
     project["updated_at"] = time.time()
     return _public(project)
 
