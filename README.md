@@ -1,52 +1,59 @@
-# TagPhonk V3
+# TagPhonk Studio V4
 
-Telegram-бот для редактирования ID3-тегов MP3 без перекодирования аудио.
+TagPhonk is a Telegram-first MP3 metadata and audio toolbox.
 
-## V3
+## V4
 
-- карточка трека с реальной встроенной обложкой;
-- основные ID3-теги;
-- расширенные теги: BPM, publisher, copyright, ISRC, website, lyrics;
-- пошаговое редактирование всех основных полей;
-- undo до 10 последних изменений;
-- подтверждение перед полным удалением тегов;
-- очистка служебных ID3-фреймов;
-- шаблоны имени готового MP3;
-- авто-поиск метаданных через MusicBrainz;
-- поиск обложки через Cover Art Archive;
-- пакетный режим до 10 MP3;
-- массовые Artist / Album / Genre / Year / Cover;
-- экспорт пакетной обработки в ZIP;
-- временные файлы автоматически очищаются;
-- webhook защищён `X-Telegram-Bot-Api-Secret-Token`.
+V3 remains the stable ID3 editor. V4 adds a modular `studio/` layer:
 
-## Telegram limits
+- Telegram Mini App dashboard;
+- persistent project metadata with Postgres support;
+- recent project history;
+- user settings and custom presets;
+- compact behavior in group chats;
+- ZIP batch import with path traversal / zip-bomb guards;
+- audio analysis via FFprobe;
+- waveform generation;
+- Slowed / Super Slowed / Sped Up;
+- Bass Boost, Reverb, loudness normalization;
+- combined Phonk FX preset;
+- 30-second preview;
+- FLAC / M4A / OGG conversion;
+- dirty filename cleanup;
+- Clean Release / Phonk Release / DJ Library / Minimal presets;
+- JSON and CSV metadata export;
+- AcoustID fingerprint integration when `ACOUSTID_API_KEY` is configured;
+- admin statistics endpoint / command;
+- rate limiting for heavier Studio actions.
 
-При использовании официального Telegram Bot API бот может скачать файл размером до 20 MB.
-Обычный Bot API может отправлять документы до 50 MB, поэтому пакет ограничен примерно 45 MB.
+## Existing V3
 
-## Render
+The original V3 bot UI, MusicBrainz metadata lookup, cover lookup, ID3 editing,
+undo, filename templates, batch mode and ZIP export remain available.
 
-Build:
+## Environment
 
-`pip install -r requirements.txt`
-
-Start:
-
-`uvicorn app:api --host 0.0.0.0 --port $PORT`
-
-Health:
-
-`/health`
-
-Environment:
-
+Required:
 - `BOT_TOKEN`
-- `PUBLIC_URL=https://tagphonkbot.onrender.com`
+- `PUBLIC_URL`
 - `WEBHOOK_SECRET`
-- `PYTHON_VERSION=3.14.3`
 
-## External metadata
+Recommended:
+- `DATABASE_URL` for persistent Studio history
+- `REDIS_URL` for future shared cache / distributed queues
+- `ADMIN_KEY`
+- `ADMIN_USER_IDS`
+- `ACOUSTID_API_KEY`
 
-MusicBrainz используется только для текстового поиска метаданных.
-MP3-файл в MusicBrainz или Cover Art Archive не загружается.
+## FFmpeg
+
+`static-ffmpeg` is used to obtain FFmpeg/FFprobe without requiring system-level package installation.
+The binary is warmed in the background after startup.
+
+## Safety
+
+- Mini App requests validate Telegram `initData`.
+- webhook continues to use Telegram secret-token validation from V3.
+- ZIP imports reject traversal and suspicious compression ratios.
+- heavy audio operations use a small concurrency semaphore.
+- bot tokens are not logged by HTTPX at INFO level.

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b10">
+  <title>TagPhonk Studio</title>
+  <link rel="stylesheet" href="/studio-static/style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js?61"></script>
+</head>
+<body>
+  <div class="noise"></div>
+  <main class="wrap">
+    <header class="hero">
+      <div class="logo">TP</div>
+      <div>
+        <h1>TagPhonk Studio</h1>
+        <p id="hello">Загрузка…</p>
+      </div>
+      <div class="pill">V4</div>
+    </header>
+
+    <section class="grid stats">
+      <article><b id="projectsCount">0</b><span>проектов</span></article>
+      <article><b id="processedSize">0 MB</b><span>обработано</span></article>
+      <article><b id="dbMode">—</b><span>хранилище</span></article>
+    </section>
+
+    <section class="card">
+      <h2>🎛 Studio Tools</h2>
+      <div class="tools">
+        <button data-tool="analysis">📊 Анализ</button>
+        <button data-tool="waveform">📈 Waveform</button>
+        <button data-tool="slowed">🐢 Slowed</button>
+        <button data-tool="phonk">🔥 Phonk FX</button>
+        <button data-tool="bass">🔊 Bass Boost</button>
+        <button data-tool="normalize">🎚 Normalize</button>
+      </div>
+      <p class="hint">Аудио-инструменты запускаются для текущего MP3 в чате бота.</p>
+      <button class="primary" id="openBot">Открыть редактор в чате</button>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <h2>🗂 Недавние проекты</h2>
+        <button class="ghost" id="reload">Обновить</button>
+      </div>
+      <div id="projects" class="projects"><div class="empty">Пока пусто</div></div>
+    </section>
+
+    <section class="card">
+      <h2>⚙️ Настройки</h2>
+      <label>Шаблон имени
+        <input id="filenameTemplate" placeholder="{artist} - {title}">
+      </label>
+      <label>Жанр по умолчанию
+        <input id="defaultGenre" placeholder="Phonk">
+      </label>
+      <label class="check"><input type="checkbox" id="removeComments"> удалять комментарии в Clean preset</label>
+      <label class="check"><input type="checkbox" id="normalizeCover"> нормализовать обложки</label>
+      <button class="primary" id="saveSettings">Сохранить настройки</button>
+    </section>
+
+    <section class="card">
+      <h2>🧩 Presets</h2>
+      <div id="presets" class="presets"></div>
+    </section>
+
+    <section class="card subtle">
+      <h2>Что уже внутри V4</h2>
+      <p>
+        Mini App, история проектов, пресеты, ZIP batch, waveform, технический анализ,
+        Slowed / Super Slowed / Sped Up, Bass Boost, Reverb, Normalize, конвертация,
+        JSON/CSV экспорт, MusicBrainz из V3 и готовность к AcoustID fingerprint.
+      </p>
+    </section>
+  </main>
+  <script src="/studio-static/app.js"></script>
+</body>
+</html>

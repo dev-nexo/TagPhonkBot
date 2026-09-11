@@ -48,7 +48,7 @@ from telegram.ext import (
     filters,
 )
 
-VERSION = "3.0.0"
+VERSION = "4.0.0"
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "change-this-secret")
@@ -85,11 +85,16 @@ async def lifespan(app: FastAPI):
     await bot_app.initialize()
     await bot_app.start()
 
+    from studio.bootstrap import studio_startup
+    await studio_startup(bot_app, PUBLIC_URL)
+
     await bot_app.bot.set_my_commands(
         [
             BotCommand("start", "Открыть TagPhonk V3"),
             BotCommand("batch", "Пакетно обработать MP3"),
             BotCommand("privacy", "Как обрабатываются файлы"),
+            BotCommand("studio", "Открыть TagPhonk Studio"),
+            BotCommand("admin", "Статистика администратора"),
             BotCommand("cancel", "Отменить текущее действие"),
             BotCommand("help", "Помощь"),
         ]
@@ -100,7 +105,7 @@ async def lifespan(app: FastAPI):
             "Редактор MP3-тегов, обложек и метаданных прямо в Telegram."
         )
         await bot_app.bot.set_my_description(
-            "TagPhonk V3: меняй ID3-теги и обложки, ищи метаданные через MusicBrainz, "
+            "TagPhonk Studio V4: ID3, обложки, MusicBrainz, Mini App и аудио-инструменты. "
             "отменяй изменения и обрабатывай несколько MP3 одним пакетом."
         )
     except TelegramError:
@@ -122,7 +127,7 @@ async def lifespan(app: FastAPI):
         await bot_app.shutdown()
 
 
-api = FastAPI(title="TagPhonk V3", version=VERSION, lifespan=lifespan)
+api = FastAPI(title="TagPhonk Studio V4", version=VERSION, lifespan=lifespan)
 
 mb_lock = asyncio.Lock()
 mb_last_request = 0.0
@@ -202,6 +207,7 @@ def main_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("⚠️ Стереть всё", callback_data="tags:clear_ask"),
             ],
             [InlineKeyboardButton("📦 Пакетный режим", callback_data="batch:start")],
+            [InlineKeyboardButton("🎛 TagPhonk Studio", callback_data="studio:menu")],
             [InlineKeyboardButton("📤 Скачать готовый MP3", callback_data="file:send")],
         ]
     )
@@ -1705,6 +1711,22 @@ bot_app.add_handler(MessageHandler(filters.PHOTO, receive_image))
 bot_app.add_handler(MessageHandler(filters.Document.ALL, receive_document))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_text))
 bot_app.add_error_handler(on_error)
+
+from studio.bootstrap import install_studio
+install_studio(
+    api=api,
+    bot_app=bot_app,
+    public_url=PUBLIC_URL,
+    bot_token=BOT_TOKEN,
+    helpers={
+        "current_file": current_file,
+        "send_track_card": send_track_card,
+        "save_undo": save_undo,
+        "get_tags": get_tags,
+        "read_field": read_field,
+        "write_field": write_field,
+    },
+)
 
 
 @api.get("/")

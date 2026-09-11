@@ -17,3 +17,13 @@ services:
         sync: false
       - key: WEBHOOK_SECRET
         generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ADMIN_KEY
+        sync: false
+      - key: ADMIN_USER_IDS
+        sync: false
+      - key: ACOUSTID_API_KEY
+        sync: false
