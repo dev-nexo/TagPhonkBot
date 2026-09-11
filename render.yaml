@@ -1,13 +1,16 @@
 services:
   - type: web
-    name: mp3-tag-editor-bot
+    name: tagphonkbot
     runtime: python
     plan: free
+    region: frankfurt
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:api --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.3
       - key: BOT_TOKEN
         sync: false
       - key: PUBLIC_URL
