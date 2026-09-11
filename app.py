@@ -23,7 +23,7 @@ PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "change-this-secret")
 
 api = FastAPI(title="MP3 Tag Editor Bot")
-bot_app = Application.builder().token(BOT_TOKEN).build()
+bot_app = Application.builder().token(BOT_TOKEN).updater(None).build()
 
 TEXT_FIELDS = {
     "title": ("Название", "TIT2", TIT2),
