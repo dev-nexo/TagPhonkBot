@@ -70,6 +70,10 @@ logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
+# Never log outgoing Telegram Bot API URLs at INFO level:
+# the bot token is embedded in those URLs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger("tagphonk")
 
 bot_app = Application.builder().token(BOT_TOKEN).updater(None).build()
