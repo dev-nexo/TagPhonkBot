@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from telegram.ext import Application
 
 from .bot_ext import install as install_bot, startup as bot_startup
+from .daw import install_daw
 from .webapp import install_web
 
 
@@ -18,6 +19,7 @@ def install_studio(
     bot_token: str,
 ) -> None:
     install_web(api, bot_token, bot_app.bot)
+    install_daw(api, bot_token)
     install_bot(bot_app, helpers, public_url)
 
 
